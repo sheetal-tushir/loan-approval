@@ -113,25 +113,27 @@ def predict_loan_status(
 # ==========================================================
 # Description & Footer
 # ==========================================================
+
+
 DESCRIPTION = """
 # 🏦 Loan Approval Prediction System
 
 This application predicts whether an applicant's loan will be **Approved** or **Rejected** using a trained **Random Forest Machine Learning Model**.
 
-Enter the applicant's financial and personal details below to run the assessment.
-"""
+### 👩‍💻 Developer Information
 
-developer_info = """
-### About the Developer
-
-**Created by:** Sheetal
+**Developer:** Sheetal
 
 **College:** Panipat Institute of Engineering & Technology (PIET)
+
+---
+
+Enter the applicant's financial and personal details below to run the assessment.
 """
 
 # ==========================================================
 # Interface Setup
-# ==========================================================
+# ==========================================================  
 interface = gr.Interface(
     fn=predict_loan_status,
     inputs=[
@@ -156,7 +158,6 @@ interface = gr.Interface(
     outputs=gr.Textbox(label="Assessment Result", lines=6),
     title="🏦 Loan Approval Prediction System",
     description=DESCRIPTION,
-    article=developer_info,
 )
 
 # ==========================================================
