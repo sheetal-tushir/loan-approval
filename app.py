@@ -1,5 +1,6 @@
 import traceback
 import os
+import traceback
 import joblib
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "loan_prediction_model.pkl")
