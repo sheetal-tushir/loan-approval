@@ -1,173 +1,143 @@
-import traceback
+# app.py
+
 import os
-import traceback
 import joblib
+import gradio as gr
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "loan_prediction_model.pkl")
-
+# ==========================================================
+# Load the trained model
+# ==========================================================
+# --- CODE BLOCK: LOAD XGBOOST MODEL ---
 try:
-    deployed_rf = joblib.load(MODEL_PATH)
-    print("✅ Model Loaded Successfully")
-except Exception:
-    print("========== MODEL LOAD ERROR ==========")
-    traceback.print_exc()
-    print("======================================")
-    deployed_rf = None
+    deployed_xgb = joblib.load("car_safety_model.pkl")
+    print("Model loaded successfully!")
+except Exception as e:
+    print(f"Warning: Model not found or error loading. {e}")
+    deployed_xgb = None
+# --------------------------------------
 
 # ==========================================================
-# Prediction Function with Error Handling
+# Prediction Function with Bulletproof Error Handling
 # ==========================================================
-def predict_loan_status(
-    no_of_dependents,
-    education,
-    self_employed,
-    income_annum,
-    loan_amount,
-    loan_term,
-    cibil_score,
-    residential_assets_value,
-    commercial_assets_value,
-    luxury_assets_value,
-    bank_asset_value,
+# --- CODE BLOCK: 6-FEATURE PREDICTION LOGIC ---
+def predict_car_safety(
+    buying_price,
+    maintenance_cost,
+    number_of_doors,
+    number_of_persons,
+    lug_boot,
+    safety
 ):
+    # Capture inputs from Gradio
     values = [
-        no_of_dependents,
-        education,
-        self_employed,
-        income_annum,
-        loan_amount,
-        loan_term,
-        cibil_score,
-        residential_assets_value,
-        commercial_assets_value,
-        luxury_assets_value,
-        bank_asset_value,
+        buying_price, maintenance_cost, number_of_doors, 
+        number_of_persons, lug_boot, safety
     ]
 
-    # Empty input check
+    # 1. Empty/None input check (Bulletproof catch if user skips a dropdown)
     if any(v is None or str(v).strip() == "" for v in values):
-        return "❌ Please fill in all the input fields."
+        return "❌ Please select an option for all input fields."
 
-    # Type casting
+    # 2. Type casting to integers
     try:
-        no_of_dependents = int(no_of_dependents)
-        education = int(education)
-        self_employed = int(self_employed)
-        income_annum = float(income_annum)
-        loan_amount = float(loan_amount)
-        loan_term = int(loan_term)
-        cibil_score = int(cibil_score)
-        residential_assets_value = float(residential_assets_value)
-        commercial_assets_value = float(commercial_assets_value)
-        luxury_assets_value = float(luxury_assets_value)
-        bank_asset_value = float(bank_asset_value)
+        buying_price = int(buying_price)
+        maintenance_cost = int(maintenance_cost)
+        number_of_doors = int(number_of_doors)
+        number_of_persons = int(number_of_persons)
+        lug_boot = int(lug_boot)
+        safety = int(safety)
     except (ValueError, TypeError):
-        return "❌ Please enter valid numeric values."
+        return "❌ Internal Error: Invalid data format received."
 
-    # Negative value check
-    if any(v < 0 for v in values):
-        return "❌ Negative values are not allowed for financial metrics."
-
-    # Range validation
-    if not (300 <= cibil_score <= 900):
-        return "❌ CIBIL score must be between 300 and 900."
-
-    if no_of_dependents > 20:
-        return "❌ Number of dependents seems unusually high (Max 20)."
-
-    # Model check
-    if deployed_rf is None:
+    # 3. Model execution
+    if deployed_xgb is None:
         return "❌ Model failed to load. Please check your .pkl file."
 
     try:
+        # Array strictly ordered to match the X dataframe provided
         input_data = [[
-            no_of_dependents,
-            education,
-            self_employed,
-            income_annum,
-            loan_amount,
-            loan_term,
-            cibil_score,
-            residential_assets_value,
-            commercial_assets_value,
-            luxury_assets_value,
-            bank_asset_value,
+            buying_price,
+            maintenance_cost,
+            number_of_doors,
+            number_of_persons,
+            lug_boot,
+            safety
         ]]
 
-        prediction = deployed_rf.predict(input_data)
+        prediction = deployed_xgb.predict(input_data)
 
-        if prediction[0] == 1:
-            return (
-                "🟢 Prediction Result\n\n"
-                "Loan Status: APPROVED\n\n"
-                "The applicant meets the criteria for this loan."
-            )
-        else:
-            return (
-                "🔴 Prediction Result\n\n"
-                "Loan Status: REJECTED\n\n"
-                "The applicant does not meet the criteria."
-            )
+        # Assuming standard label encoding for the 'decision' target
+        # (Modify these return strings if your dataset used different target labels like unacc, acc, good, vgood)
+        result_map = {
+            0: "Unacceptable (unacc)",
+            1: "Acceptable (acc)",
+            2: "Good (good)",
+            3: "Very Good (vgood)"
+        }
+        
+        # Fallback to the raw prediction if it doesn't match 0-3
+        final_decision = result_map.get(prediction[0], f"Class {prediction[0]}")
+
+        return f"🚙 Evaluation Result\n\nCar Safety Decision: {final_decision}"
 
     except Exception as e:
         return f"❌ Prediction failed.\n\nError: {str(e)}"
-
+# ----------------------------------------------
 
 # ==========================================================
 # Description & Footer
 # ==========================================================
-
-
+# --- CODE BLOCK: BRANDING & UI TEXT ---
 DESCRIPTION = """
-# 🏦 Loan Approval Prediction System
+# 🚙 Car Safety & Evaluation System
 
-This application predicts whether an applicant's loan will be **Approved** or **Rejected** using a trained **Random Forest Machine Learning Model**.
+This application evaluates a vehicle's overall acceptability based on its physical attributes, pricing, and safety metrics using a trained **XGBoost Machine Learning Model**.
 
-### 👩‍💻 Developer Information
+Select the vehicle's specifications below to run the assessment.
+"""
 
+developer_info = """
+### About the Developer
 **Developer:** Sheetal
-
-**College:** Panipat Institute of Engineering & Technology (PIET)
+Panipat Institute of Engineering & Technology
 
 ---
-
-Enter the applicant's financial and personal details below to run the assessment.
+### 🛠️ Tools & Technologies Used
+* **Machine Learning:** XGBoost Classifier
+* **Web Framework:** Gradio
+* **Language:** Python
+* **Deployment:** Render
 """
+# --------------------------------------
 
 # ==========================================================
 # Interface Setup
-# ==========================================================  
+# ==========================================================
+# --- CODE BLOCK: SAFE DROPDOWN INPUTS ---
 interface = gr.Interface(
-    fn=predict_loan_status,
+    fn=predict_car_safety,
     inputs=[
-        gr.Number(label="Number of Dependents"),
-        gr.Dropdown(
-            choices=[("Graduate", 1), ("Not Graduate", 0)],
-            label="Education Status",
-        ),
-        gr.Dropdown(
-            choices=[("Yes", 1), ("No", 0)],
-            label="Self Employed?",
-        ),
-        gr.Number(label="Annual Income (₹/$)"),
-        gr.Number(label="Loan Amount Requested"),
-        gr.Number(label="Loan Term (Months/Years)"),
-        gr.Number(label="CIBIL Score (300 - 900)"),
-        gr.Number(label="Residential Assets Value"),
-        gr.Number(label="Commercial Assets Value"),
-        gr.Number(label="Luxury Assets Value"),
-        gr.Number(label="Bank Asset Value"),
+        gr.Dropdown(choices=[("Low", 0), ("Medium", 1), ("High", 2), ("Very High", 3)], label="Buying Price"),
+        gr.Dropdown(choices=[("Low", 0), ("Medium", 1), ("High", 2), ("Very High", 3)], label="Maintenance Cost"),
+        gr.Dropdown(choices=[("2", 2), ("3", 3), ("4", 4), ("5 or More", 5)], label="Number of Doors"),
+        gr.Dropdown(choices=[("2", 2), ("4", 4), ("More", 5)], label="Number of Persons"),
+        gr.Dropdown(choices=[("Small", 0), ("Medium", 1), ("Big", 2)], label="Luggage Boot Size"),
+        gr.Dropdown(choices=[("Low", 0), ("Medium", 1), ("High", 2)], label="Safety Rating"),
     ],
-    outputs=gr.Textbox(label="Assessment Result", lines=6),
-    title="🏦 Loan Approval Prediction System",
+    outputs=gr.Textbox(label="Assessment Result", lines=4),
+    title="🚙 Car Safety Evaluation System",
     description=DESCRIPTION,
+    article=developer_info
 )
+# ----------------------------------------
 
 # ==========================================================
-# Launch
+# Launch Configuration
 # ==========================================================
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    print(f"Starting Gradio server on 0.0.0.0:{port}...")
     interface.launch(
         server_name="0.0.0.0",
-        server_port=int(os.environ.get("PORT", 7860)),
+        server_port=port,
     )
