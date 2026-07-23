@@ -1,14 +1,16 @@
+import traceback
 import os
 import joblib
-import gradio as gr
 
-# ==========================================================
-# Load the trained model
-# ==========================================================
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "loan_prediction_model.pkl")
+
 try:
-    deployed_rf = joblib.load("loan_prediction_model.pkl")
-except Exception as e:
-    print(f"Warning: Model not found or error loading. {e}")
+    deployed_rf = joblib.load(MODEL_PATH)
+    print("✅ Model Loaded Successfully")
+except Exception:
+    print("========== MODEL LOAD ERROR ==========")
+    traceback.print_exc()
+    print("======================================")
     deployed_rf = None
 
 # ==========================================================
